@@ -19,7 +19,7 @@ const port = 8081
 app.use(express.json())
 app.use(cors())
 
-app.listen(port,  '192.168.0.25',  () => {
+app.listen(port, () => {
     console.log('Работаем на порте ' + port)
 })
 
