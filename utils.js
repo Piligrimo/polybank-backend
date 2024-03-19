@@ -9,4 +9,12 @@ const createSession = (login, db) => {
     return token
 }
 
-module.exports = {createSession}
+const currencyDictionary = {
+    maxcoins: 'Макскоинов',
+    nissomani: 'Ниссомани',
+    piski: 'Дичек',
+    ilushekels: 'Илюшекелей',
+    rudies: 'Рудий',
+}
+
+module.exports = {createSession, currencyDictionary}

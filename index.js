@@ -1,7 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const sqlite3 = require('sqlite3').verbose()
-const {createSession}  = require('./sessions') 
+const {createSession, currencyDictionary}  = require('./utils') 
 
 const db = new sqlite3.Database(
     './test.db', 
@@ -9,7 +9,23 @@ const db = new sqlite3.Database(
     (err) => {if (err) { return console.error(err)}
 })
 
+const manageCurrentUser = (token, res, cb) => {
+    db.get(`SELECT * from sessions WHERE token='${token}'`,(err, session) => {
+        if (err) { return console.error(err)}
+        if (session) { 
+            db.get(`SELECT * from users WHERE login='${session.login}'`,(err, user) => {
+                if (err) { return console.error(err)}
+                cb(user)
+            })
+        } else {
+            res.status(403).send({message: 'Недоступно'})
+        }
+    })
+} 
+
+
 //db.run('CREATE TABLE users(id INTEGER PRIMARY KEY, login, password, maxcoins, nissomani, piski, ilushekels, rudies )')
+//db.run('CREATE TABLE sessions(id INTEGER PRIMARY KEY, login, token)')
 //db.run('CREATE TABLE sessions(id INTEGER PRIMARY KEY, login, token)')
 //db.run('DROP TABLE users')
 
@@ -23,6 +39,7 @@ app.listen(port, () => {
     console.log('Работаем на порте ' + port)
 })
 
+
 app.get('/users', (req, res) => {
     db.all(`SELECT login, id FROM users`,(err, rows) => {
         if (err) { return console.error(err)}
@@ -33,19 +50,9 @@ app.get('/users', (req, res) => {
 app.get('/me', (req, res) => {
     const token = req.get('token')
 
-    db.get(`SELECT * from sessions WHERE token='${token}'`,(err, session) => {
-        console.log(err, session);
-
-        if (err) { return console.error(err)}
-        if (session) { 
-            db.get(`SELECT * from users WHERE login='${session.login}'`,(err, user) => {
-                if (err) { return console.error(err)}
-                if (user) { 
-                    res.status(200).send(user)
-                } else {
-                    res.status(403).send({message: 'Недоступно'})
-                }
-            })
+    manageCurrentUser(token, res, (user) => {
+        if (user) { 
+            res.status(200).send(user)
         } else {
             res.status(403).send({message: 'Недоступно'})
         }
@@ -54,7 +61,7 @@ app.get('/me', (req, res) => {
 
 app.post('/login', (req, res) => {
     const {login, password} = req.body
-    console.log('Логинимся' + login)
+    console.log('Логинимся ' + login)
     db.get(`SELECT * from users WHERE login='${login}' And password='${password}'`,(err, row) => {
         if (err) { return console.error(err)}
         if (row) { 
@@ -98,23 +105,16 @@ app.put('/transite', (req, res) => {
     const token = req.get('token')
     const {recieverId, sum, currency} = req.body
 
-    db.get(`SELECT * from sessions WHERE token='${token}'`,(err, session) => {
-        console.log({session});
-        if (err) { return console.error(err)}
-        if (session) { 
-            db.get(`SELECT * from users WHERE login='${session.login}'`,(err, giver) => {
-                console.log({giver});
+    manageCurrentUser(token, req, (giver) => {
+        if (giver) {
+            db.get(`SELECT * from users WHERE id='${recieverId}'`,(err, reciever) => {
                 if (err) { return console.error(err)}
-                if (giver) {
-                    db.get(`SELECT * from users WHERE id='${recieverId}'`,(err, reciever) => {
-                        console.log({reciever});
-                        if (err) { return console.error(err)}
-                        if (reciever) {
-                            db.run(`UPDATE users SET ${currency} = ? WHERE id = ?`, [reciever[currency] + sum, recieverId])
-                            db.run(`UPDATE users SET ${currency} = ? WHERE id = ?`, [giver[currency] - sum, giver.id])
-                            res.status(200).send('ok')
-                        } 
-                    })
+                if (reciever) {
+                    db.run(`UPDATE users SET ${currency} = ? WHERE id = ?`, [reciever[currency] + sum, recieverId])
+                    db.run(`UPDATE users SET ${currency} = ? WHERE id = ?`, [giver[currency] - sum, giver.id])
+                    console.log(`${giver.login} переводит ${reciever.login} ${sum} ${currencyDictionary[currency]}`)
+
+                    res.status(200).send('ok')
                 } 
             })
         } 
