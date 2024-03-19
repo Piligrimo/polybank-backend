@@ -26,8 +26,10 @@ const manageCurrentUser = (token, res, cb) => {
 
 //db.run('CREATE TABLE users(id INTEGER PRIMARY KEY, login, password, maxcoins, nissomani, piski, ilushekels, rudies )')
 //db.run('CREATE TABLE sessions(id INTEGER PRIMARY KEY, login, token)')
-//db.run('CREATE TABLE sessions(id INTEGER PRIMARY KEY, login, token)')
+//db.run('CREATE TABLE history(id INTEGER PRIMARY KEY, sum, giver, reciever, comment, date)')
 //db.run('DROP TABLE users')
+//db.run('ALTER TABLE history ADD currency')
+
 
 const app = express()
 const port = 8081
@@ -103,7 +105,7 @@ app.post('/user', async (req, res) => {
 
 app.put('/transite', (req, res) => {
     const token = req.get('token')
-    const {recieverId, sum, currency} = req.body
+    const {recieverId, sum, currency, comment} = req.body
 
     manageCurrentUser(token, req, (giver) => {
         if (giver) {
@@ -112,11 +114,32 @@ app.put('/transite', (req, res) => {
                 if (reciever) {
                     db.run(`UPDATE users SET ${currency} = ? WHERE id = ?`, [reciever[currency] + sum, recieverId])
                     db.run(`UPDATE users SET ${currency} = ? WHERE id = ?`, [giver[currency] - sum, giver.id])
+                    db.run(
+                        'INSERT INTO history(sum, giver, reciever, comment, date,currency) VALUES(?,?,?,?,?,?)',
+                        [sum, giver.login, reciever.login, comment, new Date(), currency],
+                        (err) => {if (err) { return console.error(err)}}
+                    )
                     console.log(`${giver.login} переводит ${reciever.login} ${sum} ${currencyDictionary[currency]}`)
 
                     res.status(200).send('ok')
                 } 
             })
         } 
+    })
+})
+
+
+app.get('/history', (req, res) => {
+    const token = req.get('token')
+
+    manageCurrentUser(token, res, (user) => {
+        if (user) { 
+            db.all(`SELECT * from history WHERE giver='${user.login}' OR reciever='${user.login}'`,(err, rows) => {
+                if (err) { return console.error(err)} 
+                res.status(200).send(rows)          
+            })
+        } else {
+            res.status(404).send({message: 'Пользователь не найден'})
+        }
     })
 })
