@@ -17,4 +17,12 @@ const currencyDictionary = {
     rudies: 'Рудий',
 }
 
-module.exports = {createSession, currencyDictionary}
+const rarityWeights = {
+  trash: 60,
+  common: 25,
+  rare: 10,
+  epic: 5,
+  legendary: 1
+}
+
+module.exports = {createSession, currencyDictionary, rarityWeights}
